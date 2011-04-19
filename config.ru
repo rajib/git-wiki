@@ -5,5 +5,6 @@ Bundler.require
 
 require File.dirname(__FILE__) + "/git-wiki"
 
-run GitWiki.new(File.expand_path(ARGV[1] || "~/wiki"),
-  ARGV[2] || ".markdown", ARGV[3] || "Home")
+config = YAML::load(File.read('config.yml'))
+
+run GitWiki.new(config['repository'], config['extension'], config['homepage'])
