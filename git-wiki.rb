@@ -1,8 +1,3 @@
-require "sinatra/base"
-require "haml"
-require "grit"
-require "rdiscount"
-
 module GitWiki
   class << self
     attr_accessor :homepage, :extension, :repository
