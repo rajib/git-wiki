@@ -1,12 +1,13 @@
 module GitWiki
   class << self
-    attr_accessor :homepage, :extension, :repository
+    attr_accessor :homepage, :extension, :repository, :git_instance
   end
 
   def self.new(repository, extension, homepage)
     self.homepage   = homepage
     self.extension  = extension
     self.repository = Grit::Repo.new(repository)
+    self.git_instance = Git.open (working_dir = repository)
 
     App
   end
@@ -132,6 +133,7 @@ module GitWiki
 
     before do
       content_type "text/html", :charset => "utf-8"
+      @branches = GitWiki.git_instance.branches.collect{|br| br.name}
     end
 
     get "/" do
@@ -183,6 +185,9 @@ __END__
         %a{ :href => "/#{GitWiki.homepage}" } Home
       %li
         %a{ :href => "/pages" } All pages
+    %select{:name => "branch[name]"}
+      - for br in @branches
+        %option{:value => br, :selected => true} #{br} 
     #content= yield
 
 @@ show

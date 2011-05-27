@@ -2,3 +2,4 @@
 repository: ~/wiki
 extension: .md
 homepage: Home
+default_branch: local
