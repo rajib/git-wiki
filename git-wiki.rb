@@ -1,14 +1,15 @@
 module GitWiki
   class << self
-    attr_accessor :homepage, :extension, :repository, :git_instance
+    attr_accessor :homepage, :extension, :repository, :git_instance, :default_branch
   end
 
-  def self.new(repository, extension, homepage)
+  def self.new(repository, extension, homepage, default_branch)
     self.homepage   = homepage
     self.extension  = extension
     self.repository = Grit::Repo.new(repository)
     self.git_instance = Git.open (working_dir = repository)
-
+    self.default_branch = default_branch
+    
     App
   end
 
@@ -21,23 +22,17 @@ module GitWiki
   end
 
   class Page
-    def self.find_all
-      return [] if repository.tree.contents.empty?
-      repository.tree.contents.collect { |blob| new(blob) }
+    def self.find_all(branch = default_branch)
+      return [] if repository.tree(branch).contents.empty?
+      repository.tree(branch).contents.collect { |blob| new(blob) }
     end
 
-    def self.find(name)
-      page_blob = find_blob(name)
+    def self.find(name, branch = default_branch)
+      page_blob = find_blob(name, branch)
       raise PageNotFound.new(name) unless page_blob
       new(page_blob)
     end
-
-    def self.find_or_create(name)
-      find(name)
-    rescue PageNotFound
-      new(create_blob_for(name))
-    end
-
+    
     def self.css_class_for(name)
       find(name)
       "exists"
@@ -53,25 +48,17 @@ module GitWiki
       GitWiki.extension || raise
     end
 
-    def self.find_blob(page_name)
-      repository.tree/(page_name + extension)
+    def self.find_blob(page_name, branch = default_branch)
+      repository.tree(branch)/(page_name + extension)
     end
     private_class_method :find_blob
-
-    def self.create_blob_for(page_name)
-      Grit::Blob.create(repository, {
-        :name => page_name + extension,
-        :data => ""
-      })
-    end
-    private_class_method :create_blob_for
-
+    
     def initialize(blob)
       @blob = blob
     end
 
     def to_html
-      RDiscount.new(wiki_link(content)).to_html
+      RDiscount.new(content).to_html
     end
 
     def to_s
@@ -111,25 +98,17 @@ module GitWiki
       def commit_message
         new? ? "Created #{name}" : "Updated #{name}"
       end
-
-      def wiki_link(str)
-        str.gsub(/([A-Z][a-z]+[A-Z][A-Za-z0-9]+)/) { |page|
-          %Q{<a class="#{self.class.css_class_for(page)}"} +
-            %Q{href="/#{page}">#{page}</a>}
-        }
-      end
   end
 
   class App < Sinatra::Base
     set :app_file, __FILE__
-    set :haml, { :format        => :html5,
-                 :attr_wrapper  => '"'     }
+    set :haml, { :format => :html5, :attr_wrapper  => '"' }
     use_in_file_templates!
 
-    error PageNotFound do
-      page = request.env["sinatra.error"].name
-      redirect "/#{page}/edit"
-    end
+    #error PageNotFound do
+    #  page = request.env["sinatra.error"].name
+    #  redirect "/#{page}/edit"
+    #end
 
     before do
       content_type "text/html", :charset => "utf-8"
@@ -137,28 +116,33 @@ module GitWiki
     end
 
     get "/" do
-      redirect "/" + GitWiki.homepage
+      @branch = params[:branch] || GitWiki.default_branch
+      redirect "/pages/#{@branch}"
     end
 
-    get "/pages" do
-      @pages = Page.find_all
+    get "/pages/:branch" do
+      @branch = params[:branch] || GitWiki.default_branch
+      @pages = Page.find_all(@branch)
       haml :list
     end
 
-    get "/:page/edit" do
-      @page = Page.find_or_create(params[:page])
+    get "/:branch/:page/edit" do
+      @branch = params[:branch] || GitWiki.default_branch
+      @page = Page.find(params[:page], @branch)
       haml :edit
     end
 
-    get "/:page" do
-      @page = Page.find(params[:page])
+    get "/:branch/:page" do
+      @branch = params[:branch] || GitWiki.default_branch
+      @page = Page.find(params[:page], @branch)
       haml :show
     end
 
-    post "/:page" do
-      @page = Page.find_or_create(params[:page])
+    post "/:branch/:page" do
+      @branch = params[:branch] || GitWiki.default_branch
+      @page = Page.find(params[:page], @branch)
       @page.update_content(params[:body])
-      redirect "/#{@page}"
+      redirect "/#{@branch}/#{@page}"
     end
 
     private
@@ -167,8 +151,8 @@ module GitWiki
         @title
       end
 
-      def list_item(page)
-        %Q{<a class="page_name" href="/#{page}">#{page.name}</a>}
+      def list_item(page, branch)
+        %Q{<a class="page_name" href="/#{branch}/#{page}">#{page.name}</a>}
       end
   end
 end
@@ -184,16 +168,17 @@ __END__
       %li
         %a{ :href => "/#{GitWiki.homepage}" } Home
       %li
-        %a{ :href => "/pages" } All pages
+        %a{ :href => "/pages/#{@branch}" } All pages
     %select{:name => "branch[name]"}
       - for br in @branches
         %option{:value => br, :selected => true} #{br} 
+    = @branch
     #content= yield
 
 @@ show
 - title @page.name
 #edit
-  %a{:href => "/#{@page}/edit"} Edit this page
+  %a{:href => "/#{@branch}/#{@page}/edit"} Edit this page
 %h1= title
 #content
   ~"#{@page.to_html}"
@@ -201,7 +186,7 @@ __END__
 @@ edit
 - title "Editing #{@page.name}"
 %h1= title
-%form{:method => 'POST', :action => "/#{@page}"}
+%form{:method => 'POST', :action => "/#{@branch}/#{@page}"}
   %p
     %textarea{:name => 'body', :rows => 30, :style => "width: 100%"}= @page.content
   %p
@@ -217,4 +202,4 @@ __END__
 - else
   %ul#list
     - @pages.each do |page|
-      %li= list_item(page)
+      %li= list_item(page, @branch)
