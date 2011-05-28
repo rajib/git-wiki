@@ -32,13 +32,6 @@ module GitWiki
       raise PageNotFound.new(name) unless page_blob
       new(page_blob)
     end
-    
-    def self.css_class_for(name)
-      find(name)
-      "exists"
-    rescue PageNotFound
-      "unknown"
-    end
 
     def self.repository
       GitWiki.repository || raise
@@ -163,17 +156,15 @@ __END__
 %html
   %head
     %title= title
+    %link(rel='stylesheet' href="/css/application.css" type='text/css')
+    %script(src="/javascripts/jquery.js")
+    %script(src="/javascripts/application.js")
   %body
-    %ul
-      %li
-        %a{ :href => "/#{GitWiki.homepage}" } Home
-      %li
-        %a{ :href => "/pages/#{@branch}" } All pages
-    %select{:name => "branch[name]"}
-      - for br in @branches
-        %option{:value => br, :selected => true} #{br} 
-    = @branch
-    #content= yield
+    %div{ :id => "container" }
+      %select{:name => "branch[name]", :id => "branchName"}
+        - for br in @branches
+          %option{:value => "/pages/#{br}", :selected => (br==@branch)? true : false} #{br} 
+      #content= yield
 
 @@ show
 - title @page.name
