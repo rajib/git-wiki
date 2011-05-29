@@ -7,7 +7,7 @@ module GitWiki
     self.homepage   = homepage
     self.extension  = extension
     self.repository = Grit::Repo.new(repository)
-    self.git_instance = Git.open (working_dir = repository)
+    self.git_instance = Git.open(working_dir = repository)
     self.default_branch = default_branch
     
     App
