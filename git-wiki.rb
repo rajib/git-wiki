@@ -58,10 +58,6 @@ module GitWiki
       name
     end
 
-    def new?
-      @blob.id.nil?
-    end
-
     def name
       @blob.name.gsub(/#{File.extname(@blob.name)}$/, '')
     end
@@ -69,28 +65,6 @@ module GitWiki
     def content
       @blob.data
     end
-
-    def update_content(new_content)
-      return if new_content == content
-      File.open(file_name, "w") { |f| f << new_content }
-      add_to_index_and_commit!
-    end
-
-    private
-      def add_to_index_and_commit!
-        Dir.chdir(self.class.repository.working_dir) {
-          self.class.repository.add(@blob.name)
-        }
-        self.class.repository.commit_index(commit_message)
-      end
-
-      def file_name
-        File.join(self.class.repository.working_dir, name + self.class.extension)
-      end
-
-      def commit_message
-        new? ? "Created #{name}" : "Updated #{name}"
-      end
   end
 
   class App < Sinatra::Base
@@ -119,23 +93,10 @@ module GitWiki
       haml :list
     end
 
-    get "/:branch/:page/edit" do
-      @branch = params[:branch] || GitWiki.default_branch
-      @page = Page.find(params[:page], @branch)
-      haml :edit
-    end
-
     get "/:branch/:page" do
       @branch = params[:branch] || GitWiki.default_branch
       @page = Page.find(params[:page], @branch)
       haml :show
-    end
-
-    post "/:branch/:page" do
-      @branch = params[:branch] || GitWiki.default_branch
-      @page = Page.find(params[:page], @branch)
-      @page.update_content(params[:body])
-      redirect "/#{@branch}/#{@page}"
     end
 
     private
@@ -157,6 +118,7 @@ __END__
   %head
     %title= title
     %link(rel='stylesheet' href="/css/application.css" type='text/css')
+    %link(rel='stylesheet' href="/css/css3-github-buttons.css" type ='text/css')
     %script(src="/javascripts/jquery.js")
     %script(src="/javascripts/application.js")
   %body
@@ -164,26 +126,14 @@ __END__
       %select{:name => "branch[name]", :id => "branchName"}
         - for br in @branches
           %option{:value => "/pages/#{br}", :selected => (br==@branch)? true : false} #{br} 
+      %a.button.icon.home{:href => "/pages/#{@branch}"} Homepage
       #content= yield
 
 @@ show
 - title @page.name
-#edit
-  %a{:href => "/#{@branch}/#{@page}/edit"} Edit this page
 %h1= title
 #content
   ~"#{@page.to_html}"
-
-@@ edit
-- title "Editing #{@page.name}"
-%h1= title
-%form{:method => 'POST', :action => "/#{@branch}/#{@page}"}
-  %p
-    %textarea{:name => 'body', :rows => 30, :style => "width: 100%"}= @page.content
-  %p
-    %input.submit{:type => :submit, :value => "Save as the newest version"}
-    or
-    %a.cancel{:href=>"/#{@page}"} cancel
 
 @@ list
 - title "Listing pages"
