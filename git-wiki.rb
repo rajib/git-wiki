@@ -1,10 +1,9 @@
 module GitWiki
   class << self
-    attr_accessor :homepage, :extension, :repository, :git_instance, :default_branch
+    attr_accessor :extension, :repository, :git_instance, :default_branch
   end
 
-  def self.new(repository, extension, homepage, default_branch)
-    self.homepage   = homepage
+  def self.new(repository, extension, default_branch)
     self.extension  = extension
     self.repository = Grit::Repo.new(repository)
     self.git_instance = Git.open(working_dir = repository)
@@ -72,10 +71,9 @@ module GitWiki
     set :haml, { :format => :html5, :attr_wrapper  => '"' }
     use_in_file_templates!
 
-    #error PageNotFound do
-    #  page = request.env["sinatra.error"].name
-    #  redirect "/#{page}/edit"
-    #end
+    error PageNotFound do
+     "404 #{request.env["sinatra.error"].message}"
+    end
 
     before do
       content_type "text/html", :charset => "utf-8"
