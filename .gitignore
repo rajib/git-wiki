@@ -1,3 +1,6 @@
 *.log
 *.swp
 config.yml
+.rvmrc
+tmp/*
+.DS_Store 
