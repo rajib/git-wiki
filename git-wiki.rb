@@ -1,12 +1,11 @@
 module GitWiki
   class << self
-    attr_accessor :extension, :repository, :git_instance, :default_branch
+    attr_accessor :extension, :repository, :default_branch
   end
 
   def self.new(repository, extension, default_branch)
     self.extension  = extension
     self.repository = Grit::Repo.new(repository)
-    self.git_instance = Git.open(working_dir = repository)
     self.default_branch = default_branch
     
     App
@@ -77,7 +76,7 @@ module GitWiki
 
     before do
       content_type "text/html", :charset => "utf-8"
-      @branches = GitWiki.git_instance.branches.collect{|br| br.name}
+      @branches = GitWiki.repository.branches.collect{|br| br.name}
     end
 
     get "/" do
