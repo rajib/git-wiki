@@ -120,20 +120,25 @@ __END__
     %script(src="/javascripts/application.js")
   %body
     %div{ :id => "container" }
-      %select{:name => "branch[name]", :id => "branchName"}
-        - for br in @branches
-          %option{:value => "/pages/#{br}", :selected => (br==@branch)? true : false} #{br} 
-      %a.button.icon.home{:href => "/pages/#{@branch}"} Homepage
+      %a.button.icon.home{:href => "/pages/#{@branch}"} Home
       #content= yield
 
 @@ show
 - title @page.name
+%br
+%select{:name => "branch[name]", :id => "branchName"}
+  - for br in @branches
+    %option{:value => "/#{br}/#{@page}", :selected => (br==@branch)? true : false} #{br}
 %h1= title
 #content
   ~"#{@page.to_html}"
 
 @@ list
 - title "Listing pages"
+%br
+%select{:name => "branch[name]", :id => "branchName"}
+  - for br in @branches
+    %option{:value => "/pages/#{br}", :selected => (br==@branch)? true : false} #{br}
 %h1 All pages
 - if @pages.empty?
   %p No pages found.
